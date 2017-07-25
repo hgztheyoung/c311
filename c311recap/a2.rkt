@@ -13,9 +13,7 @@
     [`(lambda (,x) ,body) `(lumbda (,x) ,(lambda->lumbda body))]
     [`(,rator ,rand) `(,(lambda->lumbda rator)
                        ,(lambda->lumbda rand))]))
-
-(lambda->lumbda '(lambda (z) ((lambda (y) (a z)) (h (lambda (x) (h a))))))
-
+                       
 (define (vars s)
   (match s
     [v #:when (symbol? v) `(,v)]
