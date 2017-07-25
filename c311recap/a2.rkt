@@ -109,7 +109,7 @@
                                    (R met? rand))]))])
     (R (lambda (x) #f) s)))
 
-(define (var-occurs? x term)
+ (define (var-occurs? x term)
   (match term
     [s #:when (symbol? s) (eqv? x s)]
     [`(lambda (,s) ,body) (if (eqv? s x) #f
@@ -169,7 +169,7 @@
 (define (var-occurs-both? x term)
   (match term
     [s #:when (symbol? s) (values (eqv? x s) #f)]
-    [`(lambda (,s) ,body) (let-values([(fb bb) (var-occurs-both? x body)])
+    [`(lambda (,s) ,body) (let-values ([(fb bb) (var-occurs-both? x body)])
                             (values (if (eqv? s x) #f fb)
                                     (or (and (eqv? s x) fb)
                                         bb)))]
