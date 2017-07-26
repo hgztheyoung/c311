@@ -1,7 +1,6 @@
 #lang racket
 (define (empty-env)
   (lambda (x) (error 'empty-env "looking up empty env")))
-
 (define (extend-env env k v)
   (lambda (n)
     (if (eq? n k)
@@ -10,7 +9,12 @@
 
 (define (apply-env env k)
   (env k))
-  
+
+(define (unbox/need b)
+  (let ([val ((unbox b))])
+    (set-box! b (lambda () val))
+    val))
+
 (define (val-of-cbv exp env)
   (define (closure x body env)
     (lambda (xv)
@@ -19,16 +23,27 @@
     (clo xv))
 
   (match exp
+    [`(quote ,v) v]
     [b #:when (boolean? b) b]
     [n #:when (number? n) n]
     [`(zero? ,n) (zero? (val-of-cbv n env))]
     [`(sub1 ,n) (sub1 (val-of-cbv n env))]
+    [`(add1 ,n) (add1 (val-of-cbv n env))]
     [`(* ,n1 ,n2) (* (val-of-cbv n1 env)
                      (val-of-cbv n2 env))]
     [`(if ,test ,conseq ,alt) (if (val-of-cbv test env)
                                   (val-of-cbv conseq env)
                                   (val-of-cbv alt env))]
-
+    [`(cons^ ,a ,d) (cons (box (lambda () (val-of-cbv a env))) (box (lambda () (val-of-cbv d env))))] ;create a thunk here
+    [`(car^ ,l) (unbox/need (car (val-of-cbv l env)))] ;cbneed or cbname here
+    [`(cdr^ ,l) (unbox/need (cdr (val-of-cbv l env)))] ;cbneed or cbname here
+    [`(null? ,nt) (null? (val-of-cbv nt env))]
+    [`(cons ,a ,d) (cons (val-of-cbv a env) (val-of-cbv d env))]
+    [`(car ,l) (car (val-of-cbv l env))]
+    [`(cdr ,l) (cdr (val-of-cbv l env))]
+    [`(let ([,n ,v]) ,b) #:when (symbol? n)
+                         (let ([vb (box (val-of-cbv v env))])
+                           (val-of-cbv b (extend-env env n vb)))]
     [`(begin2 ,e1 ,e2) (begin (val-of-cbv e1 env) (val-of-cbv e2 env))]
     [`(set! ,x ,v) #:when (symbol? x)
                    (set-box! (apply-env env x)
@@ -151,42 +166,3 @@
                                     (box (lambda () (val-of-cbneed rand env))))]))
 
 
-
-
-
-;;tests
-
-
-  (val-of-cbv
- '((lambda (a)
-     ((lambda (p)
-        (begin2
-          (p a)
-          a)) (lambda (x) (set! x 4)))) 3)
- (empty-env))
-
-
-(val-of-cbr
- '((lambda (a)
-     ((lambda (p)
-        (begin2
-          (p a)
-          a)) (lambda (x) (set! x 4)))) 3)
- (empty-env))
-
-(define random-sieve
-  '((lambda (n)
-      (if (zero? n)
-          (if (zero? n) (if (zero? n) (if (zero? n) (if (zero? n) (if (zero? n)
-                                                                      (if (zero? n) #t #f) #f) #f) #f) #f) #f)
-          (if (zero? n) #f (if (zero? n) #f (if (zero? n) #f (if (zero? n) #f (if
-                                                                               (zero? n) #f (if (zero? n) #f #t))))))))
-    (random 2)))
-
-
-(val-of-cbname random-sieve (empty-env))
-(val-of-cbname
-'((lambda (z) 100)
-((lambda (x) (x x)) (lambda (x) (x x))))
-(empty-env))
-(val-of-cbneed random-sieve (empty-env))
