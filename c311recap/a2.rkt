@@ -73,20 +73,11 @@
     (R assl)))
 
 (define (lex s acc)
-  (letrec
-      ([R (lambda (s acc depth)
-            (match s
-              [v #:when (symbol? v)
-                 (let ([dep (walk-symbol s acc)])
-                   (if (eq? v dep)
-                       `(free-var ,v)
-                       `(var ,(- depth dep 1))))]
-              [`(lambda (,x) ,body)
-               `(lambda ,(R body (cons `(,x . ,depth) acc) (+ depth 1)))]
-              [`(,rator ,rand)
-               `(,(R rator acc depth)
-                 ,(R rand acc depth))]))])
-    (R s acc 0)))
+  (match s
+    [v #:when (symbol? v) `(var ,(index-of acc v))]
+    [`(lambda (,x) ,body) #:when (symbol? x)
+                          `(lambda ,(lex body (cons x acc)))]
+    [`(,rator ,rand) `(,(lex rator acc) ,(lex rand acc))]))
 
 (define (free? var s)
   (letrec ([R (lambda (bound? sub)
